@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scarlet Thread - Crimson One</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Adding Marked.js for Markdown support -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Paleta de Colores Crimson One */
+        :root {
+            --carmin: #960018;
+            --scarlet: #FF2400;
+            --crema: #FFFDD0;
+            --dark-bg: #0f0f0f;
+            --card-bg: #1a1a1a;
+        }
+ 
+        body {
+            background-color: var(--dark-bg);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+ 
+        #chat-box { height: 65vh; scroll-behavior: smooth; }
+       
+        /* Animación para el micrófono */
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(255, 36, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 36, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 36, 0, 0); }
+        }
+        .recording {
+            animation: pulse-red 1.5s infinite;
+            background-color: var(--carmin) !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-3xl bg-[#1a1a1a] rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-800">
+       
+        <!-- Encabezado -->
+        <div class="bg-gradient-to-r from-[#960018] to-[#FF2400] p-6 text-center shadow-md">
+            <h1 class="text-3xl font-bold tracking-widest text-white">SCARLET <span class="font-light text-[#FFFDD0]">THREAD</span></h1>
+            <p class="text-xs text-gray-200 mt-1 uppercase tracking-wider">Fluidez en cada puntada</p>
+        </div>
+       
+        <!-- Área del Chat -->
+        <div id="chat-box" class="p-6 overflow-y-auto flex flex-col space-y-6">
+            <!-- Mensaje Inicial del Bot -->
+            <div class="bg-[#222] border-l-4 border-[#FF2400] self-start p-5 rounded-lg max-w-[85%] shadow-md">
+                <span class="block text-[#FF2400] font-bold text-xs uppercase tracking-wider mb-2">🤖 SCARLET</span>
+                <span class="text-[#FFFDD0] text-lg">¡Hola!, Estoy lista para empezar a tejer. Presiona el micrófono y empieza a hablar en inglés.</span>
+            </div>
+        </div>
+ 
+        <!-- Área de Controles -->
+        <div class="p-5 border-t border-gray-800 bg-[#111] flex gap-3 items-center">
+            <button id="mic-btn" onclick="startListening()"
+                class="bg-gray-800 text-gray-300 p-4 rounded-full hover:bg-gray-700 transition duration-300 flex items-center justify-center focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+            </button>
+           
+            <input type="text" id="user-input" placeholder="O escribe tu mensaje aquí..."
+                class="flex-1 p-4 bg-[#222] border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#FF2400] transition-colors">
+           
+            <button onclick="sendMessage()"
+                class="bg-gradient-to-r from-[#960018] to-[#FF2400] text-white px-8 py-4 rounded-xl hover:shadow-lg hover:shadow-red-900/50 font-bold transition duration-300">
+                Enviar
+            </button>
+        </div>
+    </div>
+ 
+    <script>
+        // --- CONFIGURACIÓN DE LA API DE GEMINI ---
+        // Pega aquí la API Key
+        const API_KEY = "AIzaSyAustHM565Ms4KuYoz9ENze1uikU2dqSUw";
+       
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const micBtn = document.getElementById('mic-btn');
+ 
+        // Inicializar Reconocimiento de Voz nativo del navegador
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+ 
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US'; // Escucha en inglés
+            recognition.interimResults = false;
+ 
+            recognition.onstart = () => {
+                micBtn.classList.add('recording');
+            };
+ 
+            recognition.onend = () => {
+                micBtn.classList.remove('recording');
+            };
+ 
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+                sendMessage(); // Envía automáticamente al terminar de hablar
+            };
+ 
+            recognition.onerror = (event) => {
+                console.error("Error en el micrófono:", event.error);
+                micBtn.classList.remove('recording');
+            };
+        }
+ 
+        function startListening() {
+            if (recognition) {
+                recognition.start();
+            } else {
+                appendError("Tu navegador no soporta el reconocimiento de voz. Usa Chrome o Edge.");
+            }
+        }
+ 
+        function appendError(errorText) {
+            const errorMsgDiv = document.createElement('div');
+            errorMsgDiv.className = "bg-red-900 text-white p-3 rounded-lg text-center text-sm shadow-md max-w-[85%] self-center";
+            errorMsgDiv.innerText = errorText;
+            chatBox.appendChild(errorMsgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+ 
+        function appendMessage(text, isUser, translation = null) {
+            const msgDiv = document.createElement('div');
+           
+            // Estilos diferentes si es el Usuario (Rojo) o el Bot (Oscuro)
+            msgDiv.className = `p-5 rounded-xl max-w-[85%] shadow-md ${isUser ? 'bg-gradient-to-r from-[#960018] to-[#FF2400] text-white self-end' : 'bg-[#222] border-l-4 border-[#FF2400] self-start'}`;
+           
+            if (isUser) {
+                msgDiv.innerHTML = `<span class="block text-xs uppercase tracking-wider mb-1 text-red-200">Lo que obtuve</span><p class="text-lg">${text}</p>`;
+            } else {
+                let content = '';
+                if (translation) {
+                    content += `
+                        <div class="mb-4">
+                            <span class="block text-[#FF2400] font-bold text-xs uppercase tracking-wider mb-1">🎧 Traducción de Control (ES)</span>
+                            <p class="text-gray-300 italic text-md">${translation}</p>
+                        </div>
+                        <div class="border-t border-gray-700 pt-4">
+                            <span class="block text-[#FF2400] font-bold text-xs uppercase tracking-wider mb-2">🔴 Respuesta Sugerida (EN)</span>
+                            <div class="text-[#FFFDD0] text-xl font-medium leading-relaxed">${marked.parse(text)}</div>
+                        </div>
+                    `;
+                } else {
+                    // Por si hay algún error o respuesta plana
+                    content += `<div class="text-[#FFFDD0]">${marked.parse(text)}</div>`;
+                }
+                msgDiv.innerHTML = content;
+            }
+           
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+ 
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+ 
+            if (API_KEY === "PON_TU_API_KEY_AQUI") {
+                appendError("⚠️ Alto ahí: Olvidaste pegar tu API Key en la línea 81 del código.");
+                return;
+            }
+ 
+            // Mostrar mensaje del usuario
+            appendMessage(message, true);
+            userInput.value = '';
+ 
+            // Indicador de "Procesando..."
+            const loadingId = "loading-" + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = loadingId;
+            loadingDiv.className = 'bg-[#222] border-l-4 border-gray-500 self-start p-4 rounded-lg text-gray-400 text-sm animate-pulse';
+            loadingDiv.innerText = 'Scarlet está procesando...';
+            chatBox.appendChild(loadingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+ 
+            // --- LÓGICA DE GEMINI INTEGRADA ---
+            // Instrucción principal (Migrada de Python)
+            const systemPrompt = `You are Scarlet, a highly professional and formal bilingual assistant for the team Crimson One.
+            Your goal is to process English input and provide a dual output in JSON format:
+            1. "translation": A natural Spanish translation of the user's original message.
+            2. "response": A formal, polite, and appropriate English example of how the user could respond to the original message in a professional setting. The response must be written in the first person, consistently using the pronoun "I".
+            Always return ONLY valid JSON with these two keys.`;
+ 
+            const requestBody = {
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                contents: [{
+                    parts: [{ text: message }]
+                }],
+                generationConfig: {
+                    temperature: 1.0,
+                    responseMimeType: "application/json" // Forzamos formato JSON
+                }
+            };
+ 
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+               
+                const data = await response.json();
+                document.getElementById(loadingId).remove(); // Quitar el indicador de carga
+ 
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    let jsonText = data.candidates[0].content.parts[0].text;
+                   
+                    // Asegurarnos de limpiar cualquier comilla markdown (```json) que Gemini pueda regresar
+                    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+                   
+                    try {
+                        const parsedData = JSON.parse(jsonText);
+                        if (parsedData.response || parsedData.translation) {
+                            appendMessage(parsedData.response, false, parsedData.translation);
+                        } else {
+                            appendError("Scarlet no pudo estructurar la respuesta correctamente.");
+                        }
+                    } catch(e) {
+                         appendError("Error al interpretar la respuesta de Scarlet. Intenta de nuevo.");
+                    }
+                   
+                } else if (data.error) {
+                    appendError("Error de la API: " + data.error.message);
+                }
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                appendError("Error: No se pudo conectar con los servidores de Google Gemini.");
+            }
+        }
+ 
+        // Enviar con la tecla Enter
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
